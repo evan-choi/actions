@@ -12,7 +12,7 @@
 <p>
   <a href="#available-actions">Actions</a>
   <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
-  <a href="#quick-start">Quick Start</a>
+  <a href="#usage">Usage</a>
   <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
   <a href="#contributing">Contributing</a>
   <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
@@ -25,118 +25,36 @@
 
 ## Available Actions
 
-| Action | Description | Version |
-|--------|-------------|:-------:|
-| **[setup-go-private](setup-go-private)** | Authenticate private Go modules with per-repo token support | `v1` |
+### [`setup-go-private`](setup-go-private) &nbsp; `v1`
 
----
+> Authenticate private Go modules with per-repo token support.
 
-## setup-go-private
-
-Configures a git credential helper for private Go module authentication.
-Supports **per-repository tokens** and **GitHub Enterprise** hosts.
-
-### Quick Start
-
-```yaml
-steps:
-  - uses: actions/checkout@v4
-
-  - uses: actions/setup-go@v5
-    with:
-      go-version: "1.23"
-
-  - uses: evan-choi/actions/setup-go-private@v1
-    with:
-      token: ${{ secrets.GO_PRIVATE_TOKEN }}
-      repos: |
-        org/private-sdk
-        org/internal-lib:${{ secrets.INTERNAL_LIB_TOKEN }}
-
-  - run: go mod download  # private modules just work
-```
-
-### Inputs
-
-| Input | Required | Description |
-|-------|:--------:|-------------|
-| `token` | | Default GitHub PAT applied to repos without an explicit token override |
-| `repos` | **Yes** | Private repos to authenticate, one per line |
-
-### Repo Format
-
-```
-org/repo                    # github.com + default token
-org/repo:token              # github.com + custom token
-host/org/repo               # explicit host + default token
-host/org/repo:token         # explicit host + custom token
-```
-
-### Per-Repo Tokens
-
-Set a default token and override only where needed:
+Configure git credential helpers for `go mod download` to access private modules seamlessly. Supports **per-repo token overrides** and **GitHub Enterprise** hosts. Credentials are automatically cleaned up after the job.
 
 ```yaml
 - uses: evan-choi/actions/setup-go-private@v1
   with:
-    token: ${{ secrets.DEFAULT_TOKEN }}
+    token: ${{ secrets.GO_PRIVATE_TOKEN }}
     repos: |
-      org/repo-a
-      org/repo-b
-      org/special-repo:${{ secrets.SPECIAL_TOKEN }}
+      org/private-sdk
+      org/internal-lib:${{ secrets.INTERNAL_LIB_TOKEN }}
 ```
 
-### GitHub Enterprise
+<div align="right">
+  <a href="setup-go-private/README.md">Documentation &rarr;</a>
+</div>
 
-Prefix the host before the org/repo path:
+---
+
+## Usage
+
+Each action is located in its own directory and can be referenced directly:
 
 ```yaml
-- uses: evan-choi/actions/setup-go-private@v1
-  with:
-    token: ${{ secrets.GHE_TOKEN }}
-    repos: |
-      github.mycompany.com/org/private-repo
-      org/public-github-repo
+- uses: evan-choi/actions/<action-name>@<version>
 ```
 
-### How It Works
-
-1. **Setup** &mdash; Creates a git credential helper script in `$RUNNER_TEMP` and registers it via environment variables
-2. **Configure** &mdash; Maps each repo to its token and sets `GOPRIVATE` to bypass the public Go proxy
-3. **Cleanup** &mdash; Post-job step automatically removes all generated credential files
-
-> [!TIP]
-> No persistent git config changes. No background processes. Just clean, scoped authentication that disappears when the job ends.
-
----
-
-## FAQ
-
-<details>
-<summary><b>Why not just use <code>.netrc</code> or <code>git config</code> directly?</b></summary>
-<br>
-
-This action handles credential helper registration, `GOPRIVATE` configuration, and automatic cleanup in one step. It also supports per-repo token overrides, which is cumbersome to set up manually.
-
-</details>
-
-<details>
-<summary><b>Does this work on all runner types?</b></summary>
-<br>
-
-Yes. The credential helper is a Node.js script, so it works on `ubuntu-*`, `macos-*`, and `windows-*` runners.
-
-</details>
-
-<details>
-<summary><b>Are credentials safe?</b></summary>
-<br>
-
-Credentials are stored as temporary files in `$RUNNER_TEMP` and are automatically deleted in the post-job step. They never persist beyond the workflow run.
-
-</details>
-
----
+Refer to the individual action's README for detailed inputs, examples, and configuration options.
 
 ## Contributing
 

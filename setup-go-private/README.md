@@ -1,10 +1,35 @@
-# setup-go-private
+<div align="center">
 
-private Go 모듈 인증을 위한 GitHub Action. repo별 토큰을 지원합니다.
+<h1>setup-go-private</h1>
 
-git credential helper를 설정하여 `go mod download`가 private 모듈에 접근할 수 있도록 합니다. job 완료 후 자격 증명은 자동으로 정리됩니다.
+<p><strong>Private Go module authentication for GitHub Actions.</strong></p>
 
-## 사용법
+<p>
+  <a href="https://github.com/evan-choi/actions/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge&labelColor=000000" alt="License"></a>
+  <a href="https://github.com/features/actions"><img src="https://img.shields.io/badge/node20-runtime-green?style=for-the-badge&labelColor=000000" alt="Node 20"></a>
+</p>
+
+<p>
+  <a href="#quick-start">Quick Start</a>
+  <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  <a href="#inputs">Inputs</a>
+  <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  <a href="#examples">Examples</a>
+  <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  <a href="#how-it-works">How It Works</a>
+  <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  <a href="#faq">FAQ</a>
+  <span>&nbsp;&nbsp;&bull;&nbsp;&nbsp;</span>
+  <a href="README.ko.md">한국어</a>
+</p>
+
+</div>
+
+<br>
+
+Configure git credential helpers so `go mod download` can access private modules seamlessly. Supports **per-repo token overrides** and **GitHub Enterprise** hosts. Credentials are **automatically cleaned up** after the job completes.
+
+## Quick Start
 
 ```yaml
 steps:
@@ -21,36 +46,33 @@ steps:
         org/private-sdk
         org/internal-lib:${{ secrets.INTERNAL_LIB_TOKEN }}
 
-  - run: go mod download
+  - run: go mod download  # private modules just work
 ```
 
-## 입력
+## Inputs
 
-| 입력 | 필수 | 설명 |
-|------|------|------|
-| `token` | X | 기본 GitHub PAT. 토큰 오버라이드가 없는 repo에 적용 |
-| `repos` | O | private repo 목록 (줄 단위). 아래 형식 참고 |
+| Input | Required | Description |
+|-------|:--------:|-------------|
+| `token` | | Default GitHub PAT applied to repos without an explicit token override |
+| `repos` | **Yes** | Private repos to authenticate, one per line |
 
-### `repos` 형식
+### Repo Format
 
 ```
-org/repo                        # github.com 기본 호스트, 기본 토큰
-org/repo:token                  # github.com 기본 호스트, 토큰 오버라이드
-host/org/repo                   # 명시적 호스트, 기본 토큰
-host/org/repo:token             # 명시적 호스트, 토큰 오버라이드
+org/repo                    # github.com + default token
+org/repo:token              # github.com + custom token
+host/org/repo               # explicit host + default token
+host/org/repo:token         # explicit host + custom token
 ```
 
-## 동작 방식
+> [!NOTE]
+> Blank lines and leading/trailing whitespace in `repos` are ignored.
 
-1. **Setup** 단계에서 git credential helper 스크립트를 `$RUNNER_TEMP`에 생성
-2. 환경변수를 통해 git이 credential helper를 사용하도록 설정 (`useHttpPath` 활성화)
-3. 각 repo를 토큰에 매핑 — 별도 토큰이 없는 repo는 기본 `token` 입력값 사용
-4. `GOPRIVATE`를 자동 설정하여 Go가 해당 모듈에 대해 public proxy를 건너뜀
-5. **Post** 단계에서 생성된 모든 파일을 자동 삭제
+## Examples
 
-## repo별 토큰
+### Per-Repo Tokens
 
-대부분의 repo가 같은 토큰을 사용하면 기본값으로 설정하고, 특정 repo만 오버라이드:
+Most repos share a default token. Override only where needed:
 
 ```yaml
 - uses: evan-choi/actions/setup-go-private@v1
@@ -62,9 +84,9 @@ host/org/repo:token             # 명시적 호스트, 토큰 오버라이드
       org/special-repo:${{ secrets.SPECIAL_TOKEN }}
 ```
 
-## GitHub Enterprise
+### GitHub Enterprise
 
-호스트를 repo 앞에 명시:
+Prefix the host before the org/repo path:
 
 ```yaml
 - uses: evan-choi/actions/setup-go-private@v1
@@ -75,6 +97,74 @@ host/org/repo:token             # 명시적 호스트, 토큰 오버라이드
       org/public-github-repo
 ```
 
-## 라이선스
+### Multiple Hosts
 
-MIT
+Mix GitHub.com and GitHub Enterprise repos in a single step:
+
+```yaml
+- uses: evan-choi/actions/setup-go-private@v1
+  with:
+    repos: |
+      github.mycompany.com/org/internal-sdk:${{ secrets.GHE_TOKEN }}
+      org/oss-private:${{ secrets.GITHUB_TOKEN }}
+```
+
+## How It Works
+
+```mermaid
+graph LR
+    A(Setup) --> B(Configure) --> C(Cleanup)
+
+    style A fill:#2088FF,stroke:none,color:#fff
+    style B fill:#2088FF,stroke:none,color:#fff
+    style C fill:#2088FF,stroke:none,color:#fff
+```
+
+| Phase | Description |
+|-------|-------------|
+| **Setup** | Creates a git credential helper script in `$RUNNER_TEMP` and registers it via environment variables |
+| **Configure** | Maps each repo to its token and sets `GOPRIVATE` to bypass the public Go proxy |
+| **Cleanup** | Post-job step automatically removes all generated credential files |
+
+> [!TIP]
+> No persistent git config changes. No background processes. Just clean, scoped authentication that disappears when the job ends.
+
+## FAQ
+
+<details>
+<summary><b>Why not just use <code>.netrc</code> or <code>git config</code> directly?</b></summary>
+<br>
+
+This action handles credential helper registration, `GOPRIVATE` configuration, and automatic cleanup in one step. It also supports per-repo token overrides, which is cumbersome to set up manually.
+
+</details>
+
+<details>
+<summary><b>Does this work on all runner types?</b></summary>
+<br>
+
+Yes. The credential helper is a Node.js script, so it works on `ubuntu-*`, `macos-*`, and `windows-*` runners.
+
+</details>
+
+<details>
+<summary><b>Are credentials safe?</b></summary>
+<br>
+
+Credentials are stored as temporary files in `$RUNNER_TEMP` and are automatically deleted in the post-job step. They never persist beyond the workflow run.
+
+</details>
+
+<details>
+<summary><b>Can I use <code>GITHUB_TOKEN</code> instead of a PAT?</b></summary>
+<br>
+
+`GITHUB_TOKEN` is scoped to the current repo only. For cross-repo private module access, you need a PAT (classic or fine-grained) with `repo` scope, or separate tokens per repo.
+
+</details>
+
+---
+
+<div align="center">
+  <a href="..">← Back to actions</a>
+</div>
