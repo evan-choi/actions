@@ -25688,7 +25688,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const node_fs_1 = __importDefault(__nccwpck_require__(3024));
 async function run() {
-    const files = ["helperPath", "configPath", "netrcPath"];
+    const files = ["helperPath", "configPath"];
     for (const key of files) {
         const filePath = core.getState(key);
         if (filePath) {

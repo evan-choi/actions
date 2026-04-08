@@ -25650,6 +25650,16 @@ module.exports = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseRepos = parseRepos;
+const DEFAULT_HOST = "github.com";
+/**
+ * repos 입력을 파싱한다.
+ *
+ * 지원 형식:
+ * - org/repo → github.com 기본 호스트, 기본 토큰
+ * - host/org/repo → 명시적 호스트, 기본 토큰
+ * - org/repo:token → github.com 기본 호스트, 토큰 오버라이드
+ * - host/org/repo:token → 명시적 호스트, 토큰 오버라이드
+ */
 function parseRepos(input, defaultToken) {
     const lines = input
         .split("\n")
@@ -25658,31 +25668,46 @@ function parseRepos(input, defaultToken) {
     if (lines.length === 0) {
         throw new Error("No repos provided");
     }
-    return lines.map((line) => {
-        // owner/repo or owner/repo:token
-        // Split on first colon AFTER the owner/repo part
-        const slashIndex = line.indexOf("/");
-        if (slashIndex === -1) {
-            throw new Error(`Invalid repo format: "${line}". Expected owner/repo`);
-        }
-        // Find the first colon after the slash (repo:token separator)
-        const colonIndex = line.indexOf(":", slashIndex);
-        if (colonIndex === -1) {
-            // No token override — use default
-            const repo = line;
-            validateRepo(repo);
-            return { repo, token: defaultToken };
-        }
-        const repo = line.substring(0, colonIndex);
-        const token = line.substring(colonIndex + 1);
-        validateRepo(repo);
-        return { repo, token };
-    });
+    return lines.map((line) => parseLine(line, defaultToken));
 }
-function validateRepo(repo) {
-    const parts = repo.split("/");
-    if (parts.length !== 2 || parts[0].length === 0 || parts[1].length === 0) {
-        throw new Error(`Invalid repo format: "${repo}". Expected owner/repo`);
+function parseLine(line, defaultToken) {
+    // 슬래시가 없으면 유효하지 않은 형식
+    const firstSlash = line.indexOf("/");
+    if (firstSlash === -1) {
+        throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+    }
+    // 마지막 슬래시 이후에 콜론이 있으면 토큰 분리
+    const lastSlash = line.lastIndexOf("/");
+    const colonIndex = line.indexOf(":", lastSlash);
+    let path;
+    let token;
+    if (colonIndex === -1) {
+        path = line;
+        token = defaultToken;
+    }
+    else {
+        path = line.substring(0, colonIndex);
+        token = line.substring(colonIndex + 1);
+    }
+    // 슬래시 개수로 호스트 유무 판단
+    const segments = path.split("/");
+    if (segments.length === 2) {
+        // org/repo → github.com 기본값
+        validateSegments(segments, line);
+        return { host: DEFAULT_HOST, repo: path, token };
+    }
+    if (segments.length === 3) {
+        // host/org/repo → 명시적 호스트
+        validateSegments(segments, line);
+        const host = segments[0];
+        const repo = `${segments[1]}/${segments[2]}`;
+        return { host, repo, token };
+    }
+    throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+}
+function validateSegments(segments, original) {
+    if (segments.some((s) => s.length === 0)) {
+        throw new Error(`잘못된 repo 형식: "${original}". 빈 세그먼트가 있습니다`);
     }
 }
 
@@ -25697,19 +25722,25 @@ function validateRepo(repo) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createCredentialsConfig = createCredentialsConfig;
 exports.getHelperSource = getHelperSource;
-function createCredentialsConfig(host, entries) {
-    const repos = {};
+/**
+ * RepoEntry 배열로부터 credentials 설정을 생성한다.
+ * 형식: { [host]: { [owner/repo]: token } }
+ */
+function createCredentialsConfig(entries) {
+    const config = {};
     for (const entry of entries) {
-        repos[entry.repo] = entry.token;
+        if (!config[entry.host]) {
+            config[entry.host] = {};
+        }
+        config[entry.host][entry.repo] = entry.token;
     }
-    return { host, repos };
+    return config;
 }
 /**
- * Returns the source code of a standalone Node.js script
- * that acts as a git credential helper.
+ * git credential helper로 동작하는 독립 Node.js 스크립트의 소스 코드를 반환한다.
  *
- * The script reads go-private-credentials.json from the same directory
- * and responds to git credential "get" requests.
+ * 같은 디렉토리의 go-private-credentials.json을 읽어
+ * git credential "get" 요청에 응답한다.
  */
 function getHelperSource() {
     return `#!/usr/bin/env node
@@ -25718,7 +25749,7 @@ const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
 
-// Only handle "get" — ignore "store" and "erase"
+// "get"만 처리 — "store"와 "erase"는 무시
 if (process.argv[2] !== "get") {
   process.exit(0);
 }
@@ -25741,12 +25772,13 @@ rl.on("line", (line) => {
 });
 
 rl.on("close", () => {
-  if (fields.host !== config.host) {
+  const hostConfig = config[fields.host];
+  if (!hostConfig) {
     process.exit(0);
   }
 
   const repoPath = (fields.path || "").replace(/\\.git$/, "");
-  const token = config.repos[repoPath];
+  const token = hostConfig[repoPath];
 
   if (!token) {
     process.exit(0);
@@ -25813,34 +25845,29 @@ async function run() {
     try {
         const token = core.getInput("token", { required: true });
         const reposInput = core.getInput("repos", { required: true });
-        const host = core.getInput("host") || "github.com";
         const runnerTemp = process.env.RUNNER_TEMP;
         if (!runnerTemp) {
-            throw new Error("RUNNER_TEMP environment variable is not set");
+            throw new Error("RUNNER_TEMP 환경변수가 설정되지 않았습니다");
         }
-        // 1. Parse repos
+        // 1. repos 파싱
         const entries = (0, config_1.parseRepos)(reposInput, token);
-        core.info(`Configured ${entries.length} private repo(s) on ${host}`);
-        // 2. Write credential helper script
+        core.info(`${entries.length}개 private repo 설정됨`);
+        // 2. credential helper 스크립트 작성
         const helperPath = node_path_1.default.join(runnerTemp, "go-private-credential-helper.js");
         node_fs_1.default.writeFileSync(helperPath, (0, credential_helper_1.getHelperSource)(), { mode: 0o755 });
         core.saveState("helperPath", helperPath);
-        // 3. Write credentials config
+        // 3. credentials 설정 파일 작성
         const configPath = node_path_1.default.join(runnerTemp, "go-private-credentials.json");
-        const config = (0, credential_helper_1.createCredentialsConfig)(host, entries);
+        const config = (0, credential_helper_1.createCredentialsConfig)(entries);
         node_fs_1.default.writeFileSync(configPath, JSON.stringify(config));
         core.saveState("configPath", configPath);
-        // 4. Write .netrc (for HTTP discovery on custom hosts)
-        const netrcPath = node_path_1.default.join(runnerTemp, ".netrc");
-        node_fs_1.default.writeFileSync(netrcPath, `machine ${host} login x-access-token password ${token}\n`, { mode: 0o600 });
-        core.saveState("netrcPath", netrcPath);
-        // 5. Configure environment variables
-        // Prevent git from prompting for credentials
+        // 4. 환경변수 설정
+        // git credential 프롬프트 비활성화
         core.exportVariable("GIT_TERMINAL_PROMPT", "0");
-        // Configure git credential helper via env-based config
-        // Key 0: clear system credential helpers (empty value resets the list)
-        // Key 1: register our credential helper
-        // Key 2: enable useHttpPath so git sends the repo path to the helper
+        // 환경변수 기반 git config로 credential helper 등록
+        // Key 0: 시스템 credential helper 초기화 (빈 값으로 리셋)
+        // Key 1: 우리 credential helper 등록
+        // Key 2: useHttpPath 활성화 (git이 repo 경로를 helper에 전달하도록)
         const existingCount = parseInt(process.env.GIT_CONFIG_COUNT || "0", 10);
         const base = existingCount;
         core.exportVariable("GIT_CONFIG_COUNT", String(base + 3));
@@ -25851,18 +25878,16 @@ async function run() {
         core.exportVariable(`GIT_CONFIG_VALUE_${base + 1}`, `!node "${escapedHelperPath}"`);
         core.exportVariable(`GIT_CONFIG_KEY_${base + 2}`, "credential.useHttpPath");
         core.exportVariable(`GIT_CONFIG_VALUE_${base + 2}`, "true");
-        // .netrc for HTTP discovery
-        core.exportVariable("NETRC", netrcPath);
-        // GOPRIVATE — append to existing value
+        // GOPRIVATE — 기존 값에 추가
         const existingGoPrivate = process.env.GOPRIVATE || "";
         const newEntries = entries
-            .map((e) => `${host}/${e.repo}`)
+            .map((e) => `${e.host}/${e.repo}`)
             .join(",");
         const goprivate = existingGoPrivate
             ? `${existingGoPrivate},${newEntries}`
             : newEntries;
         core.exportVariable("GOPRIVATE", goprivate);
-        core.info("Private Go module authentication configured successfully");
+        core.info("private Go 모듈 인증 설정 완료");
     }
     catch (error) {
         if (error instanceof Error) {

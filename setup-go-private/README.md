@@ -1,10 +1,10 @@
 # setup-go-private
 
-GitHub Action to authenticate private Go modules using per-repo token support.
+private Go 모듈 인증을 위한 GitHub Action. repo별 토큰을 지원합니다.
 
-Configures a git credential helper and `.netrc` for seamless `go mod download` of private modules. Automatically cleans up credentials after the job completes.
+git credential helper를 설정하여 `go mod download`가 private 모듈에 접근할 수 있도록 합니다. job 완료 후 자격 증명은 자동으로 정리됩니다.
 
-## Usage
+## 사용법
 
 ```yaml
 steps:
@@ -24,25 +24,33 @@ steps:
   - run: go mod download
 ```
 
-## Inputs
+## 입력
 
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `token` | Yes | — | Default GitHub PAT for repo authentication |
-| `repos` | Yes | — | Private repos (one per line). `owner/repo` or `owner/repo:token` |
-| `host` | No | `github.com` | Git host for GitHub Enterprise support |
+| 입력 | 필수 | 설명 |
+|------|------|------|
+| `token` | O | 기본 GitHub PAT. 토큰 오버라이드가 없는 repo에 적용 |
+| `repos` | O | private repo 목록 (줄 단위). 아래 형식 참고 |
 
-## How It Works
+### `repos` 형식
 
-1. **Setup** generates a git credential helper script and a `.netrc` file in `$RUNNER_TEMP`
-2. Git is configured via environment variables to use the credential helper with `useHttpPath` enabled
-3. Each repo is mapped to its token — repos without an explicit token use the default `token` input
-4. `GOPRIVATE` is set automatically so Go skips the public proxy for these modules
-5. **Post** step automatically removes all generated files
+```
+org/repo                        # github.com 기본 호스트, 기본 토큰
+org/repo:token                  # github.com 기본 호스트, 토큰 오버라이드
+host/org/repo                   # 명시적 호스트, 기본 토큰
+host/org/repo:token             # 명시적 호스트, 토큰 오버라이드
+```
 
-## Per-Repo Tokens
+## 동작 방식
 
-If most repos share the same token, set it as the default. Override individual repos with `owner/repo:token` syntax:
+1. **Setup** 단계에서 git credential helper 스크립트를 `$RUNNER_TEMP`에 생성
+2. 환경변수를 통해 git이 credential helper를 사용하도록 설정 (`useHttpPath` 활성화)
+3. 각 repo를 토큰에 매핑 — 별도 토큰이 없는 repo는 기본 `token` 입력값 사용
+4. `GOPRIVATE`를 자동 설정하여 Go가 해당 모듈에 대해 public proxy를 건너뜀
+5. **Post** 단계에서 생성된 모든 파일을 자동 삭제
+
+## repo별 토큰
+
+대부분의 repo가 같은 토큰을 사용하면 기본값으로 설정하고, 특정 repo만 오버라이드:
 
 ```yaml
 - uses: evan-choi/actions/setup-go-private@v1
@@ -56,14 +64,17 @@ If most repos share the same token, set it as the default. Override individual r
 
 ## GitHub Enterprise
 
+호스트를 repo 앞에 명시:
+
 ```yaml
 - uses: evan-choi/actions/setup-go-private@v1
   with:
     token: ${{ secrets.GHE_TOKEN }}
-    repos: org/private-repo
-    host: github.mycompany.com
+    repos: |
+      github.mycompany.com/org/private-repo
+      org/public-github-repo
 ```
 
-## License
+## 라이선스
 
 MIT

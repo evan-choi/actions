@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import fs from "node:fs";
 
 async function run(): Promise<void> {
-  const files = ["helperPath", "configPath", "netrcPath"];
+  const files = ["helperPath", "configPath"];
 
   for (const key of files) {
     const filePath = core.getState(key);

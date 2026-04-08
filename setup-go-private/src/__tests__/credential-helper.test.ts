@@ -10,31 +10,36 @@ import {
 import type { CredentialsConfig } from "../types";
 
 describe("createCredentialsConfig", () => {
-  it("creates config from host and repo entries", () => {
-    const config = createCredentialsConfig("github.com", [
-      { repo: "org/repo-a", token: "token-a" },
-      { repo: "org/repo-b", token: "token-b" },
+  it("RepoEntry 배열로 호스트별 config 생성", () => {
+    const config = createCredentialsConfig([
+      { host: "github.com", repo: "org/repo-a", token: "token-a" },
+      { host: "github.com", repo: "org/repo-b", token: "token-b" },
+      { host: "ghe.company.com", repo: "org/repo-c", token: "token-c" },
     ]);
     expect(config).toEqual({
-      host: "github.com",
-      repos: {
+      "github.com": {
         "org/repo-a": "token-a",
         "org/repo-b": "token-b",
+      },
+      "ghe.company.com": {
+        "org/repo-c": "token-c",
       },
     });
   });
 });
 
-describe("credential helper script", () => {
+describe("credential helper 스크립트", () => {
   let tmpDir: string;
   let helperPath: string;
   let configPath: string;
 
   const config: CredentialsConfig = {
-    host: "github.com",
-    repos: {
+    "github.com": {
       "org/repo-a": "token-aaa",
       "org/repo-b": "token-bbb",
+    },
+    "ghe.company.com": {
+      "org/repo-c": "token-ccc",
     },
   };
 
@@ -64,39 +69,45 @@ describe("credential helper script", () => {
     });
   }
 
-  it("returns credentials for a matching repo", async () => {
+  it("매칭되는 repo의 credential 반환", async () => {
     const stdin = "protocol=https\nhost=github.com\npath=org/repo-a.git\n\n";
     const stdout = await runHelper("get", stdin);
     expect(stdout).toContain("username=x-access-token");
     expect(stdout).toContain("password=token-aaa");
   });
 
-  it("returns credentials without .git suffix", async () => {
+  it(".git 접미사 없이도 매칭", async () => {
     const stdin = "protocol=https\nhost=github.com\npath=org/repo-b\n\n";
     const stdout = await runHelper("get", stdin);
     expect(stdout).toContain("password=token-bbb");
   });
 
-  it("returns empty for non-matching repo", async () => {
+  it("다른 호스트의 repo도 매칭", async () => {
+    const stdin = "protocol=https\nhost=ghe.company.com\npath=org/repo-c.git\n\n";
+    const stdout = await runHelper("get", stdin);
+    expect(stdout).toContain("password=token-ccc");
+  });
+
+  it("미등록 repo는 빈 응답", async () => {
     const stdin =
       "protocol=https\nhost=github.com\npath=org/unknown-repo\n\n";
     const stdout = await runHelper("get", stdin);
     expect(stdout.trim()).toBe("");
   });
 
-  it("returns empty for non-matching host", async () => {
+  it("미등록 호스트는 빈 응답", async () => {
     const stdin =
       "protocol=https\nhost=gitlab.com\npath=org/repo-a.git\n\n";
     const stdout = await runHelper("get", stdin);
     expect(stdout.trim()).toBe("");
   });
 
-  it("ignores store operation", async () => {
+  it("store 무시", async () => {
     const stdout = await runHelper("store", "protocol=https\nhost=github.com\n\n");
     expect(stdout.trim()).toBe("");
   });
 
-  it("ignores erase operation", async () => {
+  it("erase 무시", async () => {
     const stdout = await runHelper("erase", "protocol=https\nhost=github.com\n\n");
     expect(stdout.trim()).toBe("");
   });

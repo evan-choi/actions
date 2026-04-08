@@ -1,12 +1,10 @@
 export interface RepoEntry {
-    /** Repository in owner/repo format */
+    /** Git 호스트 (예: github.com) */
+    host: string;
+    /** owner/repo 형식의 저장소 */
     repo: string;
-    /** GitHub PAT for this repo */
+    /** 이 repo에 대한 GitHub PAT */
     token: string;
 }
-export interface CredentialsConfig {
-    /** Git host (e.g. github.com) */
-    host: string;
-    /** Map of owner/repo → token */
-    repos: Record<string, string>;
-}
+/** host → { owner/repo → token } 매핑 */
+export type CredentialsConfig = Record<string, Record<string, string>>;

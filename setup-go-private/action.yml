@@ -1,19 +1,16 @@
 name: Setup Go Private Modules
-description: Configure git credential helper and .netrc for private Go module authentication with per-repo token support.
+description: git credential helper와 .netrc를 설정하여 private Go 모듈 인증을 구성합니다. repo별 토큰을 지원합니다.
 
 inputs:
   token:
-    description: "Default GitHub PAT. Used for repos without an explicit token override."
+    description: "기본 GitHub PAT. 토큰 오버라이드가 없는 repo에 적용됩니다."
     required: true
   repos:
     description: |
-      Private repos to authenticate. One per line.
-      Format: owner/repo or owner/repo:token (token overrides default).
+      인증할 private repo 목록. 줄 단위.
+      형식: org/repo, host/org/repo, 또는 host/org/repo:token
+      호스트 생략 시 github.com이 기본값.
     required: true
-  host:
-    description: "Git host (default: github.com). Set for GitHub Enterprise."
-    required: false
-    default: "github.com"
 
 runs:
   using: node20
