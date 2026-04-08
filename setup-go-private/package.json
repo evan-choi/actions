@@ -4,18 +4,18 @@
   "private": true,
   "scripts": {
     "build": "npm run build:setup && npm run build:teardown",
-    "build:setup": "ncc build src/setup.ts -o dist/setup",
-    "build:teardown": "ncc build src/teardown.ts -o dist/teardown",
+    "build:setup": "esbuild src/setup.ts --bundle --platform=node --target=node24 --outfile=dist/setup/index.js",
+    "build:teardown": "esbuild src/teardown.ts --bundle --platform=node --target=node24 --outfile=dist/teardown/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1"
+    "@actions/core": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
-    "@vercel/ncc": "^0.38.3",
-    "typescript": "^5.7.0",
-    "vitest": "^3.1.0"
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.3"
   }
 }

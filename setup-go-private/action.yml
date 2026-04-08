@@ -13,6 +13,6 @@ inputs:
     required: true
 
 runs:
-  using: node20
+  using: node24
   main: dist/setup/index.js
   post: dist/teardown/index.js

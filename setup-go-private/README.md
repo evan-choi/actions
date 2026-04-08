@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://github.com/evan-choi/actions/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge&labelColor=000000" alt="License"></a>
-  <a href="https://github.com/features/actions"><img src="https://img.shields.io/badge/node20-runtime-green?style=for-the-badge&labelColor=000000" alt="Node 20"></a>
+  <a href="https://github.com/features/actions"><img src="https://img.shields.io/badge/node24-runtime-green?style=for-the-badge&labelColor=000000" alt="Node 24"></a>
 </p>
 
 <p>
