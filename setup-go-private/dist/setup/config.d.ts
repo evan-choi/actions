@@ -8,4 +8,4 @@ import { RepoEntry } from "./types";
  * - org/repo:token → github.com 기본 호스트, 토큰 오버라이드
  * - host/org/repo:token → 명시적 호스트, 토큰 오버라이드
  */
-export declare function parseRepos(input: string, defaultToken: string): RepoEntry[];
+export declare function parseRepos(input: string, defaultToken?: string): RepoEntry[];

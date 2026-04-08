@@ -11,7 +11,7 @@ const DEFAULT_HOST = "github.com";
  * - org/repo:token → github.com 기본 호스트, 토큰 오버라이드
  * - host/org/repo:token → 명시적 호스트, 토큰 오버라이드
  */
-export function parseRepos(input: string, defaultToken: string): RepoEntry[] {
+export function parseRepos(input: string, defaultToken?: string): RepoEntry[] {
   const lines = input
     .split("\n")
     .map((line) => line.trim())
@@ -24,11 +24,11 @@ export function parseRepos(input: string, defaultToken: string): RepoEntry[] {
   return lines.map((line) => parseLine(line, defaultToken));
 }
 
-function parseLine(line: string, defaultToken: string): RepoEntry {
+function parseLine(line: string, defaultToken?: string): RepoEntry {
   // 슬래시가 없으면 유효하지 않은 형식
   const firstSlash = line.indexOf("/");
   if (firstSlash === -1) {
-    throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+    throw new Error(`Invalid repo format: "${line}". Expected org/repo or host/org/repo`);
   }
 
   // 마지막 슬래시 이후에 콜론이 있으면 토큰 분리
@@ -39,6 +39,10 @@ function parseLine(line: string, defaultToken: string): RepoEntry {
   let token: string;
 
   if (colonIndex === -1) {
+    // 명시 토큰 없음 → 기본 토큰 필요
+    if (!defaultToken) {
+      throw new Error(`No token for "${line}". Provide a default token or use org/repo:token format`);
+    }
     path = line;
     token = defaultToken;
   } else {
@@ -63,11 +67,11 @@ function parseLine(line: string, defaultToken: string): RepoEntry {
     return { host, repo, token };
   }
 
-  throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+  throw new Error(`Invalid repo format: "${line}". Expected org/repo or host/org/repo`);
 }
 
 function validateSegments(segments: string[], original: string): void {
   if (segments.some((s) => s.length === 0)) {
-    throw new Error(`잘못된 repo 형식: "${original}". 빈 세그먼트가 있습니다`);
+    throw new Error(`Invalid repo format: "${original}". Empty segment found`);
   }
 }

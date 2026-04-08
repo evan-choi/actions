@@ -28,7 +28,7 @@ steps:
 
 | 입력 | 필수 | 설명 |
 |------|------|------|
-| `token` | O | 기본 GitHub PAT. 토큰 오버라이드가 없는 repo에 적용 |
+| `token` | X | 기본 GitHub PAT. 토큰 오버라이드가 없는 repo에 적용 |
 | `repos` | O | private repo 목록 (줄 단위). 아래 형식 참고 |
 
 ### `repos` 형식

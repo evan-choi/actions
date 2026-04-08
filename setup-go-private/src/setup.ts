@@ -6,17 +6,17 @@ import { createCredentialsConfig, getHelperSource } from "./credential-helper";
 
 async function run(): Promise<void> {
   try {
-    const token = core.getInput("token", { required: true });
+    const token = core.getInput("token") || undefined;
     const reposInput = core.getInput("repos", { required: true });
 
     const runnerTemp = process.env.RUNNER_TEMP;
     if (!runnerTemp) {
-      throw new Error("RUNNER_TEMP 환경변수가 설정되지 않았습니다");
+      throw new Error("RUNNER_TEMP environment variable is not set");
     }
 
     // 1. repos 파싱
     const entries = parseRepos(reposInput, token);
-    core.info(`${entries.length}개 private repo 설정됨`);
+    core.info(`Configured ${entries.length} private repo(s)`);
 
     // 2. credential helper 스크립트 작성
     const helperPath = path.join(runnerTemp, "go-private-credential-helper.js");
@@ -67,7 +67,7 @@ async function run(): Promise<void> {
       : newEntries;
     core.exportVariable("GOPRIVATE", goprivate);
 
-    core.info("private Go 모듈 인증 설정 완료");
+    core.info("Private Go module authentication configured successfully");
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);

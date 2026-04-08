@@ -80,7 +80,7 @@ describe("parseRepos", () => {
   });
 
   it("슬래시 없는 형식은 에러", () => {
-    expect(() => parseRepos("invalid-repo", "token")).toThrow(/잘못된 repo 형식/);
+    expect(() => parseRepos("invalid-repo", "token")).toThrow(/Invalid repo format/);
   });
 
   it("빈 입력은 에러", () => {
@@ -92,6 +92,17 @@ describe("parseRepos", () => {
   });
 
   it("4개 이상 세그먼트는 에러", () => {
-    expect(() => parseRepos("a/b/c/d", "token")).toThrow(/잘못된 repo 형식/);
+    expect(() => parseRepos("a/b/c/d", "token")).toThrow(/Invalid repo format/);
+  });
+
+  it("기본 토큰 없이 명시 토큰만으로 동작", () => {
+    const result = parseRepos("org/repo-a:explicit-token");
+    expect(result).toEqual([
+      { host: "github.com", repo: "org/repo-a", token: "explicit-token" },
+    ]);
+  });
+
+  it("기본 토큰도 명시 토큰도 없으면 에러", () => {
+    expect(() => parseRepos("org/repo-a")).toThrow(/No token/);
   });
 });

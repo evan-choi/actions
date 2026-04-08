@@ -25674,7 +25674,7 @@ function parseLine(line, defaultToken) {
     // 슬래시가 없으면 유효하지 않은 형식
     const firstSlash = line.indexOf("/");
     if (firstSlash === -1) {
-        throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+        throw new Error(`Invalid repo format: "${line}". Expected org/repo or host/org/repo`);
     }
     // 마지막 슬래시 이후에 콜론이 있으면 토큰 분리
     const lastSlash = line.lastIndexOf("/");
@@ -25682,6 +25682,10 @@ function parseLine(line, defaultToken) {
     let path;
     let token;
     if (colonIndex === -1) {
+        // 명시 토큰 없음 → 기본 토큰 필요
+        if (!defaultToken) {
+            throw new Error(`No token for "${line}". Provide a default token or use org/repo:token format`);
+        }
         path = line;
         token = defaultToken;
     }
@@ -25703,11 +25707,11 @@ function parseLine(line, defaultToken) {
         const repo = `${segments[1]}/${segments[2]}`;
         return { host, repo, token };
     }
-    throw new Error(`잘못된 repo 형식: "${line}". org/repo 또는 host/org/repo 형식이어야 합니다`);
+    throw new Error(`Invalid repo format: "${line}". Expected org/repo or host/org/repo`);
 }
 function validateSegments(segments, original) {
     if (segments.some((s) => s.length === 0)) {
-        throw new Error(`잘못된 repo 형식: "${original}". 빈 세그먼트가 있습니다`);
+        throw new Error(`Invalid repo format: "${original}". Empty segment found`);
     }
 }
 
@@ -25843,15 +25847,15 @@ const config_1 = __nccwpck_require__(2973);
 const credential_helper_1 = __nccwpck_require__(8187);
 async function run() {
     try {
-        const token = core.getInput("token", { required: true });
+        const token = core.getInput("token") || undefined;
         const reposInput = core.getInput("repos", { required: true });
         const runnerTemp = process.env.RUNNER_TEMP;
         if (!runnerTemp) {
-            throw new Error("RUNNER_TEMP 환경변수가 설정되지 않았습니다");
+            throw new Error("RUNNER_TEMP environment variable is not set");
         }
         // 1. repos 파싱
         const entries = (0, config_1.parseRepos)(reposInput, token);
-        core.info(`${entries.length}개 private repo 설정됨`);
+        core.info(`Configured ${entries.length} private repo(s)`);
         // 2. credential helper 스크립트 작성
         const helperPath = node_path_1.default.join(runnerTemp, "go-private-credential-helper.js");
         node_fs_1.default.writeFileSync(helperPath, (0, credential_helper_1.getHelperSource)(), { mode: 0o755 });
@@ -25887,7 +25891,7 @@ async function run() {
             ? `${existingGoPrivate},${newEntries}`
             : newEntries;
         core.exportVariable("GOPRIVATE", goprivate);
-        core.info("private Go 모듈 인증 설정 완료");
+        core.info("Private Go module authentication configured successfully");
     }
     catch (error) {
         if (error instanceof Error) {
