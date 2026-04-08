@@ -1,0 +1,21 @@
+{
+  "name": "setup-go-private",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:setup && npm run build:teardown",
+    "build:setup": "ncc build src/setup.ts -o dist/setup",
+    "build:teardown": "ncc build src/teardown.ts -o dist/teardown",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}

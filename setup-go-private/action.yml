@@ -1,0 +1,21 @@
+name: Setup Go Private Modules
+description: Configure git credential helper and .netrc for private Go module authentication with per-repo token support.
+
+inputs:
+  token:
+    description: "Default GitHub PAT. Used for repos without an explicit token override."
+    required: true
+  repos:
+    description: |
+      Private repos to authenticate. One per line.
+      Format: owner/repo or owner/repo:token (token overrides default).
+    required: true
+  host:
+    description: "Git host (default: github.com). Set for GitHub Enterprise."
+    required: false
+    default: "github.com"
+
+runs:
+  using: node20
+  main: dist/setup/index.js
+  post: dist/teardown/index.js
