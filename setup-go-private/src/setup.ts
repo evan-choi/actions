@@ -49,10 +49,15 @@ async function run(): Promise<void> {
     core.exportVariable(`GIT_CONFIG_VALUE_${base}`, "");
     core.exportVariable(`GIT_CONFIG_KEY_${base + 1}`, "credential.helper");
 
+    // PATH 의 `node` 를 참조하면 자가호스팅 러너처럼 node 가 없을 때 helper 가 silent
+    // 실패하여 인증이 계속 거절됨. Action 은 node runtime 으로 실행되므로
+    // `process.execPath` 는 항상 유효한 절대경로를 가리킨다. Windows/Linux/macOS
+    // 모두 `!"/abs/path/to/node" "/abs/path/to/helper.js"` 형식으로 git 에 전달.
     const escapedHelperPath = helperPath.replace(/\\/g, "/");
+    const escapedNodePath = process.execPath.replace(/\\/g, "/");
     core.exportVariable(
       `GIT_CONFIG_VALUE_${base + 1}`,
-      `!node "${escapedHelperPath}"`
+      `!"${escapedNodePath}" "${escapedHelperPath}"`
     );
     core.exportVariable(`GIT_CONFIG_KEY_${base + 2}`, "credential.useHttpPath");
     core.exportVariable(`GIT_CONFIG_VALUE_${base + 2}`, "true");
